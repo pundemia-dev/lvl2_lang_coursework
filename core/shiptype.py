@@ -31,7 +31,7 @@ class ShipType(Enum):
         "Battleship",
         4,
         (
-
+        
         ),
         1
     )
@@ -43,7 +43,7 @@ class ShipType(Enum):
         
     
 class Ship:
-    def __init__(self, ship_type: ShipType):
+    def __init__(self, ship_type: ShipType, ship_unset_func):
         self.ship_type = ship_type
         self.cells_list = list()
         self.alive = True
@@ -53,6 +53,8 @@ class Ship:
             self.cells_list.append(cell)
         else:
             pass # logs
+    def is_me(self, position):
+        return any(list(map(lambda cell: cell.is_me(position), self.cells_list)))
 
     def check_alive(self) -> bool:
         return self.alive
@@ -62,7 +64,22 @@ class ShipContainer:
     def __init__(self):
         self.alive = True
         self.ships_counts = {ship.name: ship.count for ship in ShipType}
+        self.ships = {ship.type: [] for ship in ShipType}
+        self.cells_list = []
 
-    def new_ship(self, ship_type: ShipType):
+        self.new_game()
+    
+    def enable_ship_mapping(self, enable: bool):
+        pass
+
+    def ship_on_hover(self, position):
+        pass  
+
+    def ship_set(self, position):
+        pass 
+
+    def new_game(self):
+        pass
+
 
 
