@@ -55,9 +55,10 @@ class Cell(ctk.CTkButton):
             "text": "",
             "fg_color": Color.gray,
             "hover_color": Color.green_dark,
-            "command": self.button_command
+            # "command": self.button_command
         }
         super().__init__(master, **args)
+        self.bind("<ButtonRelease-1>", self.button_command)
         self.state = None
         self.position = position
         self.ship_set_func = ship_set_func
@@ -67,7 +68,8 @@ class Cell(ctk.CTkButton):
         self.default_color = Color.gray
         self.bomb_action_func = bomb_action_func
         self.hidden = False
-        self.toggle_hidden(self.hidden)
+        self.toggle_hidden(hidden)
+
     
     def toggle_hidden(self, enable):
         self.hidden = enable
@@ -75,13 +77,18 @@ class Cell(ctk.CTkButton):
 
     def bombs_enable(self, enable):
         if enable:
-            self.bind("<Enter>", lambda _: self.bomb_hover(enable=True) if self.cget("state") == "normal" else None)
-            self.bind("<Leave>", lambda _: self.bomb_hover(enable=False) if self.cget("state") == "normal" else None)
+            self.bind("<Enter>", lambda _: self.bomb_on_hover(enable=True) if self.cget("state") == "normal" else None)
+            self.bind("<Leave>", lambda _: self.bomb_on_hover(enable=False) if self.cget("state") == "normal" else None)
             self.configure(state="normal")
         else:
             self.unbind("<Enter>")
             self.unbind("<Leave>")
             self.configure(state="disabled")
+
+    def bomb_hover(self, enable:bool):
+        if enable:
+            self.last_text = self.cget("text")
+            # self.configure()
 
     def check_alive(self) -> bool:
         match self.state:
@@ -96,7 +103,7 @@ class Cell(ctk.CTkButton):
     def set_ship_unset_func(self, func):
         self.ship_unset_func = func
 
-    def button_command(self):
+    def button_command(self, _):
         match (self.state, self.hidden): 
             case (None, False):
                 self.ship_set_func(self.position)
@@ -111,11 +118,12 @@ class Cell(ctk.CTkButton):
             case (CellState.alive, 0):
                 self.configure(fg_color=Color.green, state="normal")
                 self.default_color = Color.green
-            case (CellState.cell, 0):
+            case (CellState.cell, _):
                 self.configure(fg_color=Color.gray, state="disabled")
                 self.default_color = Color.gray
             case (CellState.dead, _):
-                self.configure(fg_color=Color.red, state="normal")
+                print(self.position)
+                self.configure(fg_color=Color.red, state="disabled")
                 self.default_color = Color.red
             case (None, _):
                 self.configure(fg_color=Color.gray, state="normal")
@@ -275,6 +283,7 @@ class ShipContainer(ctk.CTkFrame):
             list(map(lambda pos: self.cell_list[pos[1]][pos[0]].ship_on_hover(enable, flag), filtered_positions))
 
     def ship_set(self, position):
+        print("set", self.active_shiptype_selector, position, self.selector_rotation)
         if self.active_shiptype_selector is not None:
             center = self.active_shiptype_selector.cells_count // 2 
             begin_pos = position[self.selector_rotation] - center
@@ -295,7 +304,7 @@ class ShipContainer(ctk.CTkFrame):
                 for pos in positions:
                     self.ships[self.active_shiptype_selector.name][-1].add_cell(self.cell_list[pos[1]][pos[0]], pos)
 
-                if True:#not sum(self.ships_counts.values()):
+                if not sum(self.ships_counts.values()):
                     self.play_button.grid(row=10, column=0, padx=5, pady=5, sticky="sew")
 
     def ship_unset_func(self, positions, shiptype):
@@ -339,7 +348,9 @@ class ShipContainer(ctk.CTkFrame):
             Reload("You lost", self.reload) 
 
     def play_game(self):
+        print("hi")
         self.enable_ship_selector(False)
+        self.master.play_game()
         
 
     def reload(self):

@@ -14,9 +14,12 @@ class Battleship(ctk.CTkFrame):
         self.botgrid.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
         self.usergrid = ShipContainer(self)
         self.usergrid.grid(row=1, column=0, padx=10, pady=10, sticky="nsew" )
-        self.bot = Bot(self.botgrid.ship_set, self.botgrid.ship_unset_func, self.botgrid.check_alive, self.botgrid.bombs_enable, self.usergrid.bomb_action)
+        self.bot = Bot(self, self.botgrid.ship_set, self.botgrid.ship_unset_func, self.botgrid.check_alive, self.botgrid.bombs_enable, self.usergrid.bomb_action)
+        self.botgrid.bombs_enable(False)
 
     def play_game(self):
-        self.usergrid.
+        self.botgrid.bombs_enable(True)
+        pass
+        # self.usergrid.
 
         
