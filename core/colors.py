@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class Color(str, Enum):
     red = "#CC241D"
     green = "#98971A"

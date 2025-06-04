@@ -1,5 +1,8 @@
-import customtkinter as ctk 
 from enum import Enum
+from random import randint
+from icecream import ic
+import customtkinter as ctk
+
 from core.colors import Color
 
 
@@ -48,13 +51,14 @@ class CellState(Enum):
     dead = -1
 
 class Cell(ctk.CTkButton):
-    def __init__(self, master, position, ship_mapping_func, ship_set_func, bomb_action_func, hidden):
+    def __init__(self, master, position, ship_mapping_func, ship_set_func, bomb_action_func, hidden=False):
         args = {
             "width": 30,
             "height": 30,
             "text": "",
             "fg_color": Color.gray,
-            "hover_color": Color.green_dark,
+            "hover_color": Color.gray_dark,
+            # "text_color_disabled": Color.gray,
             "command": self.button_command
         }
         super().__init__(master, **args)
@@ -66,18 +70,22 @@ class Cell(ctk.CTkButton):
         self.last_text = ""
         self.default_color = Color.gray
         self.bomb_action_func = bomb_action_func
-        self.hidden = False
-        self.toggle_hidden(self.hidden)
+        self.hidden = hidden
+        self.toggle_hidden(hidden)
     
     def toggle_hidden(self, enable):
         self.hidden = enable
-        self.configure(self.configure(state="disabled"))
+        if enable:
+            self.configure(text_color=self.default_color, hover_color=Color.yellow)
+            if self.cget("text") not in (" ", "󱥸 "):
+                self.configure(text=" ")
+
 
     def bombs_enable(self, enable):
         if enable:
-            self.bind("<Enter>", lambda _: self.bomb_hover(enable=True) if self.cget("state") == "normal" else None)
-            self.bind("<Leave>", lambda _: self.bomb_hover(enable=False) if self.cget("state") == "normal" else None)
-            self.configure(state="normal")
+            self.bind("<Enter>", lambda _: self.configure(text_color="white", fg_color=Color.yellow) if self.cget("state") == "normal" else None)
+            self.bind("<Leave>", lambda _: self.configure(text_color=Color.gray, fg_color=self.default_color) if self.cget("state") == "normal" else None)
+            self.configure(state="disabled" if self.cget("text") in (" ", "󱥸 ") else "normal")
         else:
             self.unbind("<Enter>")
             self.unbind("<Leave>")
@@ -115,7 +123,7 @@ class Cell(ctk.CTkButton):
                 self.configure(fg_color=Color.gray, state="disabled")
                 self.default_color = Color.gray
             case (CellState.dead, _):
-                self.configure(fg_color=Color.red, state="normal")
+                self.configure(fg_color=Color.red, state="disabled")
                 self.default_color = Color.red
             case (None, _):
                 self.configure(fg_color=Color.gray, state="normal")
@@ -146,27 +154,31 @@ class Cell(ctk.CTkButton):
 
     def bomb_action(self)->bool:
         if self.state is CellState.alive:
-            self.configure(text="󱥸 ")
+            self.configure(text="󱥸 ", state="disabled")
             self.set_state(CellState.dead)
             return CellState.alive
         else:
-            self.configure(text=" ")
+            self.configure(text=" ", state="disabled", fg_color=self.default_color)
             return CellState.cell
 
 
 class ShipsSelector(ctk.CTkFrame):
-    def __init__(self, master, select_ship_func):
+    def __init__(self, master, select_ship_func, load_random_map):
         super().__init__(master)
         self.grid_rowconfigure(9, weight=1) 
-        self.buttons = {ship.name: None for ship in ShipType}
+        self.buttons = []
 
         for row, ship in enumerate(ShipType):
-            button = ctk.CTkButton(self, text=f"{ship.type} {"*"*ship.cells_count}", fg_color=Color.purple, hover_color=Color.purple_dark, command=lambda shiptype=ship: select_ship_func(shiptype))
+            button = ctk.CTkButton(self, text=f"{ship.type} {"*"*ship.cells_count}", fg_color=Color.blue, hover_color=Color.blue_dark, command=lambda shiptype=ship: select_ship_func(shiptype))
             button.grid(row=row, column=0, padx=10, pady=10, sticky="nsew")
-            self.buttons[ship.name] = button
+            self.buttons.append(button)
 
-    def enable_selector(self, ship, enable:bool):
-        self.buttons[ship].configure(state="normal" if enable else "disabled")
+        button = ctk.CTkButton(self, text="Load random map", fg_color=Color.purple, hover_color=Color.purple_dark, command=load_random_map)
+        button.grid(row=len(ShipType), column=0, padx=10,pady=10,sticky="nsew")
+        self.buttons.append(button)
+
+    def enable_selector(self, enable:bool):
+        list(map(lambda button:button.configure(state="normal" if enable else "disabled"), self.buttons))
 
 class Ship:
     def __init__(self, ship_type, ship_unset_func):
@@ -189,7 +201,7 @@ class Ship:
         self.ship_unset_func(self.positions, self.ship_type)
 
     def is_me(self, position):
-        return any([position is pos for pos in self.positions])
+        return (position[0], position[1]) in self.positions
 
     def check_alive(self) -> bool:
         return sum([cell.check_alive() for cell in self.cells_list])
@@ -209,7 +221,7 @@ class ShipContainer(ctk.CTkFrame):
         self.bot_callback = None
         self.cells_frame = ctk.CTkFrame(self)
         self.cells_frame.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
-        self.ship_selector = ShipsSelector(self, self.set_active_shiptype_selector)
+        self.ship_selector = ShipsSelector(self, self.set_active_shiptype_selector, self.load_random_map)
         if not self.hidden:
             self.ship_selector.grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
         self.cell_list = []
@@ -244,7 +256,7 @@ class ShipContainer(ctk.CTkFrame):
         else:
             self.ship_selector.grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
 
-    def toggle_selector_rotation(self, _):
+    def toggle_selector_rotation_callback(self, _):
         self.ship_on_hover(self.selector_position, False)
         self.selector_rotation = not self.selector_rotation
         self.ship_on_hover(self.selector_position, True)
@@ -257,9 +269,9 @@ class ShipContainer(ctk.CTkFrame):
             for cell in row:
                 cell.ship_mapping(enable)
         # list(map(lambda row: map(lambda cell: cell.ship_mapping(enable), row), self.cell_list))
-        [self.ship_selector.enable_selector(ship.name, enable) for ship in ShipType]
+        self.ship_selector.enable_selector(enable)
         if enable:
-            self.master.master.bind("<BackSpace>", self.toggle_selector_rotation)
+            self.master.master.bind("<BackSpace>", self.toggle_selector_rotation_callback)
         else:
             self.master.master.unbind("<BackSpace>")
 
@@ -282,7 +294,6 @@ class ShipContainer(ctk.CTkFrame):
             positions = [(position[0], p) if self.selector_rotation else (p, position[1]) for p in range(begin_pos, end_pos)]
             filtered_positions = [pos for pos in positions if all(0 <= unit < 10 for unit in pos)]
             flag = len(positions) is len(filtered_positions)
-            
             if flag and self.ships_counts[self.active_shiptype_selector.name]:
                 ship = Ship(self.active_shiptype_selector, self.ship_unset_func)
                 self.ships[self.active_shiptype_selector.name].append(ship)
@@ -295,8 +306,39 @@ class ShipContainer(ctk.CTkFrame):
                 for pos in positions:
                     self.ships[self.active_shiptype_selector.name][-1].add_cell(self.cell_list[pos[1]][pos[0]], pos)
 
-                if True:#not sum(self.ships_counts.values()):
+                if not sum(self.ships_counts.values()):
                     self.play_button.grid(row=10, column=0, padx=5, pady=5, sticky="sew")
+    
+    def load_random_map(self):
+        self.reload_map() 
+        trash_positions = []
+        for shiptype in ShipType:
+            self.set_active_shiptype_selector(shiptype)
+            for ship in range(shiptype.count):
+                while True:
+                    if randint(0, 1):
+                        self.selector_rotation = not self.selector_rotation
+                    position = (randint(0, 9), randint(0, 9))
+                    center = shiptype.cells_count // 2 
+                    begin_pos = position[self.selector_rotation] - center
+                    end_pos = begin_pos + shiptype.cells_count
+                    positions = [(position[0], p) if self.selector_rotation else (p, position[1]) for p in range(begin_pos, end_pos)]
+                    filtered_positions = [pos for pos in positions if all([0 <= unit < 10 for unit in pos])]
+                    flag_frame = len(positions) is len(filtered_positions)
+                    if flag_frame:
+                        flag_combine = not any([x in trash_positions for x in filtered_positions])
+                        if flag_combine:
+                            for poss in filtered_positions:
+                                for x in range(poss[0]-1, poss[0]+2):
+                                    for y in range(poss[1]-1, poss[1]+2):
+                                        trash_positions.append((x, y))
+
+                            trash_positions.extend(filtered_positions)
+                            self.ship_set(position)
+                            # print(shiptype.type, filtered_positions, list([x in trash_positions for x in filtered_positions]))
+                            break
+
+        
 
     def ship_unset_func(self, positions, shiptype):
         for pos in positions:
@@ -315,32 +357,36 @@ class ShipContainer(ctk.CTkFrame):
                 cell.bombs_enable(enable)
 
     def win_window(self):
-        Reload("You win", self.reload)
+        Reload("You win :D" if self.check_alive() else "You lost(", self.reload)
         
 
-    def bomb_action(self, position)->bool:
+    def bomb_action(self, position):
+        ic.disable()
         for y in range(position[1]):
             self.cell_list[y][position[0]].bomb_on_hover(True)
             [x for x in range(10000)] 
             self.cell_list[y][position[0]].bomb_on_hover(False)
         
         self.cell_list[position[1]][position[0]].bomb_action()
-        self.check_alive()
-        for ship in self.ships.value():
-            if ship.is_me(position):
-                return not ship.check_alive()
+        ic(self.ships)
+        ic.enable()
+        for ships in self.ships.values():
+            for ship in ships:
+                if ship.is_me(position):
+                    return not ship.check_alive()
         return -1
 
-    def check_alive(self):
-        flag = not sum([ship.check_alive() for ship in self.ships.values()])
-        if self.hidden:
-            return flag 
-        elif flag: 
-            Reload("You lost", self.reload) 
+    def check_alive(self) -> bool:
+        return any([list(map(lambda ship:ship.check_alive(), ships)) for ships in self.ships.values()])
 
     def play_game(self):
         self.enable_ship_selector(False)
-        
+        self.master.play_game()
+       
+    def reload_map(self):
+        for ships in self.ships.values():
+            for ship in ships:
+                ship.unset()
 
     def reload(self):
         self.enable_ship_selector(True)
