@@ -111,7 +111,7 @@ class Cell(ctk.CTkButton):
             case (CellState.alive, False):
                 self.ship_unset_func()
             case (_, True):
-                self.bomb_action_func(self.position)
+                self.bomb_action_func(self.position, True)
 
     def set_state(self, state):#state: CellState):
         self.state = state
@@ -210,15 +210,16 @@ class Ship:
 class Reload(ctk.CTkToplevel):
     def __init__(self, text, reload_func):
         super().__init__()
-        self.label = ctk.CTkLabel(text=text)
+        self.label = ctk.CTkLabel(self, text=text)
         self.label.pack(padx=20, pady=10)
-        self.button = ctk.CTkButton(text="Reload", fg_color=Color.aqua, hover_color=Color.aqua_dark, command=reload_func)
+        self.button = ctk.CTkButton(self, text="Reload", fg_color=Color.aqua, hover_color=Color.aqua_dark, command=reload_func)
+        self.button.pack(padx=20, pady=20)
 
 class ShipContainer(ctk.CTkFrame):
-    def __init__(self, master, hidden=False):
+    def __init__(self, master, iter_callback = None, hidden=False):
         super().__init__(master)
         self.hidden = hidden
-        self.bot_callback = None
+        self.iter_callback = iter_callback
         self.cells_frame = ctk.CTkFrame(self)
         self.cells_frame.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
         self.ship_selector = ShipsSelector(self, self.set_active_shiptype_selector, self.load_random_map)
@@ -241,9 +242,6 @@ class ShipContainer(ctk.CTkFrame):
         self.selector_rotation = True
         self.selector_position = ()
         self.reload()
-
-    def add_bot_callback(self, bot_callback):
-        self.bot_callback = bot_callback
 
     def toggle_hidden(self):
         self.hidden = not self.hidden
@@ -357,10 +355,10 @@ class ShipContainer(ctk.CTkFrame):
                 cell.bombs_enable(enable)
 
     def win_window(self):
-        Reload("You win :D" if self.check_alive() else "You lost(", self.reload)
+        Reload(text = "You win :D" if self.check_alive() else "You lost(", reload_func=self.reload)
         
 
-    def bomb_action(self, position):
+    def bomb_action(self, position, button_callback = False):
         ic.disable()
         for y in range(position[1]):
             self.cell_list[y][position[0]].bomb_on_hover(True)
@@ -373,8 +371,17 @@ class ShipContainer(ctk.CTkFrame):
         for ships in self.ships.values():
             for ship in ships:
                 if ship.is_me(position):
-                    return not ship.check_alive()
-        return -1
+                    # self.iter_callback(not ship.check_alive())
+                    # return
+                    if button_callback:
+                        self.iter_callback(not ship.check_alive())
+                        return
+                    else:
+                        return not ship.check_alive()
+        if button_callback:
+            self.iter_callback(-1)
+        else:
+            return -1
 
     def check_alive(self) -> bool:
         return any([list(map(lambda ship:ship.check_alive(), ships)) for ships in self.ships.values()])

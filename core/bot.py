@@ -61,6 +61,7 @@ class Bot:
         ic.enable()
         ic(self.map)
         prefire = []
+        result = None
         match self.state:
             case BotState.fill:
                 intersections = [[all(units) for units in zip(rows[0], rows[1])] for rows in zip(self.map, self.black_or_white)]
@@ -224,4 +225,6 @@ class Bot:
                         for y in range(fire_range[1][0] , fire_range[1][1]):
                             for x in range(fire_range[0][0], fire_range[0][1]):
                                 self.map[y][x] = False
+
+        return result
                 

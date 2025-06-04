@@ -1,7 +1,8 @@
 import customtkinter as ctk 
 from random import randint
+from icecream import ic
 
-from core.bot import Bot
+from core.bot import Bot, Bomb
 from core.ship_container import ShipContainer
 
 
@@ -13,7 +14,7 @@ class Battleship(ctk.CTkFrame):
         # self.grid_columnconfigure(0, weight=0)
         self.grid_columnconfigure(0, weight=1)
         self.users = []
-        botgrid = ShipContainer(self, hidden=True)
+        botgrid = ShipContainer(self, iter_callback=self.play_iter, hidden=True)
         botgrid.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
         botgrid.bombs_enable(False)
         self.users.append(botgrid)
@@ -28,7 +29,9 @@ class Battleship(ctk.CTkFrame):
             self.users[1].bomb_action,
         )
         self.turn = True
+        self.last_res = Bomb.miss
         self.master.bind("<Control-a>", lambda _: self.toggle_turn())
+        self.users[1].win_window()
 
     def play_game(self):
         self.users[0].load_random_map()
@@ -39,13 +42,18 @@ class Battleship(ctk.CTkFrame):
         self.turn = self.turn
         self.play_iter()
 
-    def play_iter(self):
+    def play_iter(self, last_res=None):
+        ic(last_res)
         if all([user.check_alive() for user in self.users]):
+            if last_res is not None:
+                self.last_res = last_res
+            if self.last_res == Bomb.miss:
+                self.turn = not self.turn
             self.label.configure(text="Your turn" if self.turn else "Bot's turn")
-            if self.turn:
-                self.users[0].bombs_enable(True)
-                print("hell")
-            else:
-                self.bot.bomb_action()
+            self.users[0].bombs_enable(self.turn)
+            if not self.turn:
+                self.last_res = self.bot.bomb_action()
+                self.play_iter()
         else:
+            
             self.users[1].win_window()
