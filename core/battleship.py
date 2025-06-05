@@ -1,10 +1,15 @@
-import customtkinter as ctk 
+import customtkinter as ctk
+import threading
+import time
 from random import randint
 from icecream import ic
 
 from core.bot import Bot, Bomb
 from core.ship_container import ShipContainer
 
+def start_timer(func, seconds):
+    timer = threading.Timer(seconds, func)
+    timer.start()
 
 class Battleship(ctk.CTkFrame):
     def __init__(self, master):
@@ -31,7 +36,6 @@ class Battleship(ctk.CTkFrame):
         self.turn = True
         self.last_res = Bomb.miss
         self.master.bind("<Control-a>", lambda _: self.toggle_turn())
-        self.users[1].win_window()
 
     def play_game(self):
         self.users[0].load_random_map()
@@ -43,6 +47,7 @@ class Battleship(ctk.CTkFrame):
         self.play_iter()
 
     def play_iter(self, last_res=None):
+        ic.disable()
         ic(last_res)
         if all([user.check_alive() for user in self.users]):
             if last_res is not None:
@@ -52,8 +57,9 @@ class Battleship(ctk.CTkFrame):
             self.label.configure(text="Your turn" if self.turn else "Bot's turn")
             self.users[0].bombs_enable(self.turn)
             if not self.turn:
-                self.last_res = self.bot.bomb_action()
-                self.play_iter()
+                self.last_res = ic(self.bot.bomb_action())
+                start_timer(self.play_iter, 2)
+                # self.play_iter()
         else:
             
             self.users[1].win_window()

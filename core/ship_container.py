@@ -2,9 +2,13 @@ from enum import Enum
 from random import randint
 from icecream import ic
 import customtkinter as ctk
+import threading
 
 from core.colors import Color
 
+def start_timer(func, seconds, *args):
+    timer = threading.Timer(seconds, func, args=args)
+    timer.start()
 
 class ShipType(Enum):
     PATROL_BOAT = (
@@ -58,7 +62,7 @@ class Cell(ctk.CTkButton):
             "text": "",
             "fg_color": Color.gray,
             "hover_color": Color.gray_dark,
-            # "text_color_disabled": Color.gray,
+            # "text_color_disabled": Color.white_dark,
             "command": self.button_command
         }
         super().__init__(master, **args)
@@ -73,6 +77,11 @@ class Cell(ctk.CTkButton):
         self.hidden = hidden
         self.toggle_hidden(hidden)
     
+    def always_dead(self):
+        if self.state is CellState.dead:
+            self.configure(fg_color=Color.red)
+            self.default_color = Color.red
+
     def toggle_hidden(self, enable):
         self.hidden = enable
         if enable:
@@ -83,7 +92,7 @@ class Cell(ctk.CTkButton):
 
     def bombs_enable(self, enable):
         if enable:
-            self.bind("<Enter>", lambda _: self.configure(text_color="white", fg_color=Color.yellow) if self.cget("state") == "normal" else None)
+            self.bind("<Enter>", lambda _: self.configure(text_color=Color.white, fg_color=Color.yellow) if self.cget("state") == "normal" else None)
             self.bind("<Leave>", lambda _: self.configure(text_color=Color.gray, fg_color=self.default_color) if self.cget("state") == "normal" else None)
             self.configure(state="disabled" if self.cget("text") in (" ", "󱥸 ") else "normal")
         else:
@@ -122,9 +131,12 @@ class Cell(ctk.CTkButton):
             case (CellState.cell, 0):
                 self.configure(fg_color=Color.gray, state="disabled")
                 self.default_color = Color.gray
-            case (CellState.dead, _):
-                self.configure(fg_color=Color.red, state="disabled")
-                self.default_color = Color.red
+            case (CellState.dead, 0):
+                self.configure(fg_color=Color.yellow_dark if self.hidden else Color.yellow, state="disabled", text_color_disabled=Color.white)
+                self.default_color = Color.yellow_dark if self.hidden else Color.yellow
+            case (CellState.dead, 1):
+                self.configure(fg_color=Color.yellow_dark if self.hidden else Color.yellow, state="disabled", text_color_disabled=Color.white_dark)
+                self.default_color = Color.yellow_dark if self.hidden else Color.yellow
             case (None, _):
                 self.configure(fg_color=Color.gray, state="normal")
                 self.default_color = Color.gray
@@ -197,14 +209,24 @@ class Ship:
         else:
             pass # logs
 
+    def always_dead(self):
+        [cell.always_dead() for cell in self.cells_list]
+
     def unset(self):
         self.ship_unset_func(self.positions, self.ship_type)
 
     def is_me(self, position):
         return (position[0], position[1]) in self.positions
 
-    def check_alive(self) -> bool:
-        return sum([cell.check_alive() for cell in self.cells_list])
+    def check_alive(self, not_include_pos=None) -> bool:
+        ic.enable()
+        if not_include_pos is not None:
+            ic(not_include_pos, self.cells_list[0].position)
+            ic.disable()
+            return sum(ic([cell.check_alive() for cell in self.cells_list if cell.position not in not_include_pos]))
+        else:
+            ic.disable()
+            return sum(ic([cell.check_alive() for cell in self.cells_list]))
 
 
 class Reload(ctk.CTkToplevel):
@@ -235,7 +257,9 @@ class ShipContainer(ctk.CTkFrame):
                 cell = Cell(self.cells_frame, (x, y), self.ship_on_hover, self.ship_set, self.bomb_action, self.hidden)
                 cell.grid(row=y, column=x, padx=5, pady=5, sticky="nsew")
                 self.cell_list[y].append(cell)
-
+        
+        self.bomb_rain_time = [(9.8*i)/100 for i in range(9, -1, -1)]
+        self.last_bombed = []
         self.ships_counts = {ship.name: ship.count for ship in ShipType}
         self.ships = {ship.name: [] for ship in ShipType}
         self.active_shiptype_selector = None
@@ -357,34 +381,58 @@ class ShipContainer(ctk.CTkFrame):
     def win_window(self):
         Reload(text = "You win :D" if self.check_alive() else "You lost(", reload_func=self.reload)
         
+    def bomb_rain(self, position, target_position):
+        if position[1] != 0:
+            self.cell_list[position[1]-1][position[0]].bomb_on_hover(False)
+        else:
+            self.last_bombed.append(target_position)
+        self.cell_list[position[1]][position[0]].bomb_on_hover(True)
+        if position[1] == target_position[1]:
+            # self.bomb_explode(target_position)
+            self.cell_list[position[1]][position[0]].bomb_action()
+            for ships in self.ships.values():
+                for ship in ships:
+                    if ship.is_me(position):
+                        if not ship.check_alive(self.last_bombed):
+                            ship.always_dead()
+        else:
+            start_timer(self.bomb_rain, self.bomb_rain_time[position[1]] if not self.hidden else 0, (position[0], position[1]+1), target_position)
 
     def bomb_action(self, position, button_callback = False):
         ic.disable()
-        for y in range(position[1]):
-            self.cell_list[y][position[0]].bomb_on_hover(True)
-            [x for x in range(10000)] 
-            self.cell_list[y][position[0]].bomb_on_hover(False)
+        position = (position[0], position[1])
+        self.bomb_rain((position[0], 0), position)
+
+        # for y in range(position[1]):
+        #     self.cell_list[y][position[0]].bomb_on_hover(True)
+        #     [x for x in range(10000)] 
+        #     self.cell_list[y][position[0]].bomb_on_hover(False)
         
-        self.cell_list[position[1]][position[0]].bomb_action()
+        # self.cell_list[position[1]][position[0]].bomb_action()
         ic(self.ships)
         ic.enable()
         for ships in self.ships.values():
             for ship in ships:
                 if ship.is_me(position):
-                    # self.iter_callback(not ship.check_alive())
-                    # return
+                    # if not ship.check_alive(position):
+                    #     ship.always_dead()
                     if button_callback:
-                        self.iter_callback(not ship.check_alive())
+                        self.iter_callback(not ship.check_alive(self.last_bombed))
                         return
                     else:
-                        return not ship.check_alive()
+                        return not ship.check_alive(self.last_bombed)
         if button_callback:
             self.iter_callback(-1)
         else:
             return -1
 
     def check_alive(self) -> bool:
-        return any([list(map(lambda ship:ship.check_alive(), ships)) for ships in self.ships.values()])
+        ic.disable()
+        ic(self.hidden)
+        res = []
+        [res.extend(list(map(lambda ship: ship.check_alive(), ships))) for ships in self.ships.values()]
+        res = sum(ic(res))
+        return res
 
     def play_game(self):
         self.enable_ship_selector(False)

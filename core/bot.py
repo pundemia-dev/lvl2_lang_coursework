@@ -41,6 +41,7 @@ class Bot:
         return unit
 
     def reload(self):
+        ic.disable()
         self.map = [[True for _ in range(10)] for _ in range(10)]
         black_or_white_flag = randint(0, 1)
         self.black_or_white = [[True if ((x + y) % 2) is black_or_white_flag else False for x in range(10)] for y in range(10)]
@@ -52,13 +53,13 @@ class Bot:
         self.state = BotState.fill
 
     def bomb_request(self, prefire):
-        ic.enable()
+        ic.disable()
         fire = ic(choice(ic(prefire)))
         self.map[fire[1]][fire[0]] = False
         return (ic(self.user_bomb_action(fire)), fire)
 
     def bomb_action(self):
-        ic.enable()
+        ic.disable()
         ic(self.map)
         prefire = []
         result = None
