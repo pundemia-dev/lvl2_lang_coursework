@@ -36,10 +36,11 @@ class Battleship(ctk.CTkFrame):
         self.turn = True
         self.last_res = Bomb.miss
         self.master.bind("<Control-a>", lambda _: self.toggle_turn())
+        # self.users[0].win_window()
 
     def play_game(self):
         self.users[0].load_random_map()
-        self.turn = 0# randint(0, 1)
+        self.turn = randint(0, 1)
         self.play_iter()
 
     def toggle_turn(self):
@@ -59,7 +60,6 @@ class Battleship(ctk.CTkFrame):
             if not self.turn:
                 self.last_res = ic(self.bot.bomb_action())
                 start_timer(self.play_iter, 2)
-                # self.play_iter()
         else:
             
             self.users[1].win_window()

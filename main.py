@@ -10,7 +10,7 @@ class App(ctk.CTk):
         super().__init__()
 
         self.title("Морской бой")
-        self.geometry(f"{350}x{510}")
+        self.geometry(f"{603}x{910}")
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
 

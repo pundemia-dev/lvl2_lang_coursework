@@ -76,7 +76,17 @@ class Cell(ctk.CTkButton):
         self.bomb_action_func = bomb_action_func
         self.hidden = hidden
         self.toggle_hidden(hidden)
+        self.bind("<Button-3>", self.mark) 
     
+    def mark(self, _):
+        ic.enable()
+        text, text_color = "×", Color.white_dark
+        if ic(self.cget("text")) == text:
+            text, text_color = " ", Color.gray
+        if ic(self.cget("state")) == "normal":
+            ic()
+            self.configure(text=text, text_color=text_color)
+
     def always_dead(self):
         if self.state is CellState.dead:
             self.configure(fg_color=Color.red)
@@ -86,14 +96,14 @@ class Cell(ctk.CTkButton):
         self.hidden = enable
         if enable:
             self.configure(text_color=self.default_color, hover_color=Color.yellow)
-            if self.cget("text") not in (" ", "󱥸 "):
+            if self.cget("text") not in (" ", "󱥸 ", "×"):
                 self.configure(text=" ")
 
 
     def bombs_enable(self, enable):
         if enable:
             self.bind("<Enter>", lambda _: self.configure(text_color=Color.white, fg_color=Color.yellow) if self.cget("state") == "normal" else None)
-            self.bind("<Leave>", lambda _: self.configure(text_color=Color.gray, fg_color=self.default_color) if self.cget("state") == "normal" else None)
+            self.bind("<Leave>", lambda _: self.configure(text_color=Color.gray if self.cget("text") != "×" else Color.white_dark, fg_color=self.default_color) if self.cget("state") == "normal" else None)
             self.configure(state="disabled" if self.cget("text") in (" ", "󱥸 ") else "normal")
         else:
             self.unbind("<Enter>")
@@ -232,6 +242,7 @@ class Ship:
 class Reload(ctk.CTkToplevel):
     def __init__(self, text, reload_func):
         super().__init__()
+        self.title("Морской бой: уведомление")
         self.label = ctk.CTkLabel(self, text=text)
         self.label.pack(padx=20, pady=10)
         self.button = ctk.CTkButton(self, text="Reload", fg_color=Color.aqua, hover_color=Color.aqua_dark, command=reload_func)
