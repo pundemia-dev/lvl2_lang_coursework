@@ -19,13 +19,13 @@ class Battleship(ctk.CTkFrame):
         # self.grid_columnconfigure(0, weight=0)
         self.grid_columnconfigure(0, weight=1)
         self.users = []
-        botgrid = ShipContainer(self, iter_callback=self.play_iter, hidden=True)
+        botgrid = ShipContainer(self, reload_callback=self.reload, iter_callback=self.play_iter, hidden=True)
         botgrid.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
         botgrid.bombs_enable(False)
         self.users.append(botgrid)
         self.label = ctk.CTkLabel(self, text="Let's play")
         self.label.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
-        usergrid = ShipContainer(self)
+        usergrid = ShipContainer(self, reload_callback=self.reload)
         usergrid.grid(row=2, column=0, padx=10, pady=10, sticky="nsew")
         self.users.append(usergrid)
         self.bot = Bot(
@@ -43,6 +43,10 @@ class Battleship(ctk.CTkFrame):
         self.turn = randint(0, 1)
         self.play_iter()
 
+    def reload(self):
+        for user in self.users:
+            user.reload()
+
     def toggle_turn(self):
         self.turn = self.turn
         self.play_iter()
@@ -59,7 +63,10 @@ class Battleship(ctk.CTkFrame):
             self.users[0].bombs_enable(self.turn)
             if not self.turn:
                 self.last_res = ic(self.bot.bomb_action())
-                start_timer(self.play_iter, 2)
+                if all([user.check_alive() for user in self.users]):
+                    start_timer(self.play_iter, 0)
+                else:
+                    self.users[1].win_window()
         else:
             
             self.users[1].win_window()

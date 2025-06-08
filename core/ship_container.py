@@ -148,7 +148,7 @@ class Cell(ctk.CTkButton):
                 self.configure(fg_color=Color.yellow_dark if self.hidden else Color.yellow, state="disabled", text_color_disabled=Color.white_dark)
                 self.default_color = Color.yellow_dark if self.hidden else Color.yellow
             case (None, _):
-                self.configure(fg_color=Color.gray, state="normal")
+                self.configure(fg_color=Color.gray, state="normal", text="")
                 self.default_color = Color.gray
 
     def ship_mapping(self, enable: bool):
@@ -240,17 +240,23 @@ class Ship:
 
 
 class Reload(ctk.CTkToplevel):
-    def __init__(self, text, reload_func):
+    def __init__(self, text, reload_callback):
         super().__init__()
+        self.reload_callback = reload_callback
         self.title("Морской бой: уведомление")
         self.label = ctk.CTkLabel(self, text=text)
         self.label.pack(padx=20, pady=10)
-        self.button = ctk.CTkButton(self, text="Reload", fg_color=Color.aqua, hover_color=Color.aqua_dark, command=reload_func)
+        self.button = ctk.CTkButton(self, text="Reload", fg_color=Color.aqua, hover_color=Color.aqua_dark, command=self.button_callback)
         self.button.pack(padx=20, pady=20)
 
+    def button_callback(self):
+        self.reload_callback()
+        self.destroy()
+
 class ShipContainer(ctk.CTkFrame):
-    def __init__(self, master, iter_callback = None, hidden=False):
+    def __init__(self, master, reload_callback, iter_callback = None, hidden=False):
         super().__init__(master)
+        self.reload_callback = reload_callback
         self.hidden = hidden
         self.iter_callback = iter_callback
         self.cells_frame = ctk.CTkFrame(self)
@@ -276,7 +282,7 @@ class ShipContainer(ctk.CTkFrame):
         self.active_shiptype_selector = None
         self.selector_rotation = True
         self.selector_position = ()
-        self.reload()
+        self.enable_ship_selector(True)
 
     def toggle_hidden(self):
         self.hidden = not self.hidden
@@ -368,7 +374,7 @@ class ShipContainer(ctk.CTkFrame):
 
                             trash_positions.extend(filtered_positions)
                             self.ship_set(position)
-                            # print(shiptype.type, filtered_positions, list([x in trash_positions for x in filtered_positions]))
+                            print(shiptype.type, filtered_positions, list([x in trash_positions for x in filtered_positions]))
                             break
 
         
@@ -379,7 +385,7 @@ class ShipContainer(ctk.CTkFrame):
                 for y in range(pos[1]-1, pos[1]+2):
                     if x in range(10) and y in range(10):
                         self.cell_list[y][x].set_state(None)
-        self.ships[shiptype.name] = [ship for ship in self.ships[shiptype.name] if ship.is_me(positions[0])]
+        self.ships[shiptype.name] = [ship for ship in self.ships[shiptype.name] if not ship.is_me(positions[0])]
         self.ships_counts[shiptype.name] += 1
         if sum(self.ships_counts.values()):
             self.play_button.grid_forget()
@@ -390,7 +396,7 @@ class ShipContainer(ctk.CTkFrame):
                 cell.bombs_enable(enable)
 
     def win_window(self):
-        Reload(text = "You win :D" if self.check_alive() else "You lost(", reload_func=self.reload)
+        Reload(text = "You win :D" if self.check_alive() else "You lost(", reload_callback=self.reload_callback)
         
     def bomb_rain(self, position, target_position):
         if position[1] != 0:
@@ -455,6 +461,20 @@ class ShipContainer(ctk.CTkFrame):
                 ship.unset()
 
     def reload(self):
-        self.enable_ship_selector(True)
-        
+        self.last_bombed = []
+        # self.ships_counts = {ship.name: ship.count for ship in ShipType}
+        self.reload_map() 
+        for row in self.cell_list:
+            for cell in row:
+                cell.set_state(None)
+                if cell.hidden:
+                    cell.toggle_hidden(True)
+                    cell.hidden = True
+        # self.ships = {ship.name: [] for ship in ShipType}
+        self.active_shiptype_selector = None
+        self.selector_rotation = True
+        self.selector_position = ()
+        self.enable_ship_selector(not self.hidden)
+        if self.hidden:
+            self.bombs_enable(False)
 
