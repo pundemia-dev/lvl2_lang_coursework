@@ -2,13 +2,10 @@ from enum import Enum
 from random import randint
 from icecream import ic
 import customtkinter as ctk
-import threading
+from core.tools import start_timer
 
 from core.colors import Color
 
-def start_timer(func, seconds, *args):
-    timer = threading.Timer(seconds, func, args=args)
-    timer.start()
 
 class ShipType(Enum):
     PATROL_BOAT = (
@@ -238,6 +235,11 @@ class Ship:
             ic.disable()
             return sum(ic([cell.check_alive() for cell in self.cells_list]))
 
+class ShipSend:
+    def __init__(self, ship):
+        self.ship_type = ship.ship_type
+        self.positions = ship.positions
+
 
 class Reload(ctk.CTkToplevel):
     def __init__(self, text, reload_callback):
@@ -254,8 +256,9 @@ class Reload(ctk.CTkToplevel):
         self.destroy()
 
 class ShipContainer(ctk.CTkFrame):
-    def __init__(self, master, reload_callback, iter_callback = None, hidden=False):
+    def __init__(self, master, reload_callback, iter_callback = None, hidden=False, bombed_callback=None):
         super().__init__(master)
+        self.bombed_callback = bombed_callback
         self.reload_callback = reload_callback
         self.hidden = hidden
         self.iter_callback = iter_callback
@@ -283,6 +286,8 @@ class ShipContainer(ctk.CTkFrame):
         self.selector_rotation = True
         self.selector_position = ()
         self.enable_ship_selector(True)
+        if self.hidden:
+            self.bombs_enable(False)
 
     def toggle_hidden(self):
         self.hidden = not self.hidden
@@ -434,12 +439,14 @@ class ShipContainer(ctk.CTkFrame):
                     # if not ship.check_alive(position):
                     #     ship.always_dead()
                     if button_callback:
-                        self.iter_callback(not ship.check_alive(self.last_bombed))
+                        ic.enable()
+                        ic(self.last_bombed)
+                        self.iter_callback(not ship.check_alive(self.last_bombed), self.last_bombed[-1])
                         return
                     else:
                         return not ship.check_alive(self.last_bombed)
         if button_callback:
-            self.iter_callback(-1)
+            self.iter_callback(-1, self.last_bombed[-1])
         else:
             return -1
 
@@ -477,4 +484,32 @@ class ShipContainer(ctk.CTkFrame):
         self.enable_ship_selector(not self.hidden)
         if self.hidden:
             self.bombs_enable(False)
+
+    def set_ships(self, shiptype):
+        for ships in shiptype.values():
+            for ship in ships:
+                poss = ship.positions
+                axis = False
+                if poss[0][0] == poss[-1][0]: # x=x
+                    axis = True
+                self.selector_rotation = axis
+                self.active_shiptype_selector = ship.ship_type
+                center = poss[0][axis] + ship.ship_type.cells_count // 2
+                if axis:
+                    pos = (poss[0][0], center)
+                else:
+                    pos = (center, poss[0][1])
+                self.ship_set(pos)
+                print(self.active_shiptype_selector, pos)
+        ic()
+
+    def get_ships(self):
+        ships_send = {ship.name: [] for ship in ShipType}
+        for name, ships_box in self.ships.items():
+            for ship in ships_box:
+                ships_send[name].append(ShipSend(ship))
+
+        return ships_send
+            
+ 
 

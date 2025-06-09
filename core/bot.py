@@ -3,6 +3,7 @@ from random import randint, choice
 from core.ship_container import ShipType
 from enum import Enum
 from icecream import ic
+from core.tools import my_constrain
 
 
 class Bomb(int, Enum):
@@ -21,11 +22,9 @@ class BotState(Enum):
 class Bot:
     def __init__(self, 
                  self_check_alive, 
-                 self_bombs_enable, 
                  user_bomb_action):
         ic.configureOutput(prefix="Bot | ")
         self.check_alive = self_check_alive 
-        self.bombs_enable = self_bombs_enable 
         self.user_bomb_action = user_bomb_action
 
         self.map = list()
@@ -35,10 +34,6 @@ class Bot:
         self.ship_counter = {ship.cells_count: ship.count for ship in ShipType if ship is not ShipType.PATROL_BOAT}
         
         self.reload()
-    def constrain(self, unit, lower_order, upper_order):
-        unit = unit if unit >= lower_order else lower_order 
-        unit = unit if unit <= upper_order else upper_order
-        return unit
 
     def reload(self):
         ic.disable()
@@ -85,7 +80,7 @@ class Bot:
                             self.bombed_ship.append(fire)
                             fire_range = []
                             for ind in range(2):
-                                fire_range.append([self.constrain(fire[ind]-1, 0, 10), self.constrain(fire[ind]+2, 0, 10)])
+                                fire_range.append([my_constrain(fire[ind]-1, 0, 10), my_constrain(fire[ind]+2, 0, 10)])
                             for y in range(fire_range[1][0] , fire_range[1][1]):
                                 for x in range(fire_range[0][0], fire_range[0][1]):
                                     self.map[y][x] = False
@@ -101,7 +96,7 @@ class Bot:
                     for offset in range(-1, 2, 2):
                         temp = list(self.bombed_ship[0])
                         temp[axis] += offset
-                        temp[axis] = self.constrain(temp[axis], 0, 9)
+                        temp[axis] = my_constrain(temp[axis], 0, 9)
                         if self.map[temp[1]][temp[0]]:
                             prefire.append(temp)
                             
@@ -121,7 +116,7 @@ class Bot:
                                 for ind in range(2):
                                     ic(pos)
                                     ic(pos[ind]-1)
-                                    fire_range.append([self.constrain(pos[ind]-1, 0, 10), self.constrain(pos[ind]+2, 0, 10)])
+                                    fire_range.append([my_constrain(pos[ind]-1, 0, 10), my_constrain(pos[ind]+2, 0, 10)])
                                 for y in range(fire_range[1][0] , fire_range[1][1]):
                                     for x in range(fire_range[0][0], fire_range[0][1]):
                                         self.map[y][x] = False
@@ -140,7 +135,7 @@ class Bot:
                         offset = ic(offset // abs(offset))
                         temp = list(self.bombed_ship[-1])
                         temp[not axis] += offset
-                        if temp[not axis] != self.constrain(temp[not axis],0,9) or not self.map[temp[1]][temp[0]]:
+                        if temp[not axis] != my_constrain(temp[not axis],0,9) or not self.map[temp[1]][temp[0]]:
                             self.state = BotState.another_way
                             self.bomb_action()
                             return
@@ -162,7 +157,7 @@ class Bot:
                             for pos in self.bombed_ship:
                                 fire_range = []
                                 for ind in range(2):
-                                    fire_range.append([self.constrain(pos[ind]-1,0, 10), self.constrain(pos[ind]+2,0, 10)])
+                                    fire_range.append([my_constrain(pos[ind]-1,0, 10), my_constrain(pos[ind]+2,0, 10)])
                                 ic(fire_range)
                                 for y in range(fire_range[1][0] , fire_range[1][1]):
                                     for x in range(fire_range[0][0], fire_range[0][1]):
@@ -199,7 +194,7 @@ class Bot:
                             for pos in self.bombed_ship:
                                 fire_range = []
                                 for ind in range(2):
-                                    fire_range.append([self.constrain(pos[ind]-1, 0, 10), self.constrain(pos[ind]+2,0,10)])
+                                    fire_range.append([my_constrain(pos[ind]-1, 0, 10), my_constrain(pos[ind]+2,0,10)])
                                 for y in range(fire_range[1][0] , fire_range[1][1]):
                                     for x in range(fire_range[0][0], fire_range[0][1]):
                                         self.map[y][x] = False
@@ -222,7 +217,7 @@ class Bot:
                     if result is Bomb.killed:
                         fire_range = []
                         for ind in range(2):
-                            fire_range.append([self.constrain(fire[ind]-1, 0, 10), self.constrain(fire[ind]+2,0,10)])
+                            fire_range.append([my_constrain(fire[ind]-1, 0, 10), my_constrain(fire[ind]+2,0,10)])
                         for y in range(fire_range[1][0] , fire_range[1][1]):
                             for x in range(fire_range[0][0], fire_range[0][1]):
                                 self.map[y][x] = False
