@@ -163,12 +163,11 @@ class Battleship(ctk.CTkFrame):
             if not self.turn:
                 self.last_res = ic(self.rival[self.selected_rival].bomb_action())
                 if all([user.check_alive() for user in self.users]):
-                    if self.selected_rival:
-                        self.play_iter()
-                    else:
-                        start_timer(self.play_iter, self.bots_delay)
+                    start_timer(self.play_iter, 0 if self.selected_rival else self.bots_delay)
                 else:
                     self.users[1].win_window()
         else:
-            
+            if last_res is not None:
+                if self.selected_rival:
+                    self.rival[1].callback_send(last_pos)
             self.users[1].win_window()
