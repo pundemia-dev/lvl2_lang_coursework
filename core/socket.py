@@ -13,8 +13,8 @@ class SocketState(str, Enum):
 class Socket(ctk.CTkFrame):
     def __init__(self, master, self_check_alive, user_bomb_action):
         super().__init__(master)
-        self.check_alive = self_check_alive  # Проверка жизни соединения
-        self.user_bomb_action = user_bomb_action  # Приём выстрела от оппонента
+        self.check_alive = self_check_alive  
+        self.user_bomb_action = user_bomb_action 
 
         self.host = '127.0.0.1'
         self.port = 12345
@@ -112,10 +112,9 @@ class Socket(ctk.CTkFrame):
         """
         try:
             print("Ожидание хода от соперника...")
-            data = self.receive_with_ack()  # Ждём сообщение с подтверждением
+            data = self.receive_with_ack()  
             print(f"Получен ход от соперника: {data}")
 
-            # Вызываем обработчик хода
             return self.user_bomb_action(data)
 
         except Exception as e:
@@ -137,16 +136,11 @@ class Socket(ctk.CTkFrame):
         """
 
         try:
-            # --- Подготовка ---
-            # own_data = pickle.dumps({name: [ship for ship in ship_box] for name, ship_box in ships.items()})#.encode()
-
             if self.state == SocketState.host:
-                # ХОСТ: ожидает корабли клиента -> ставит -> отправляет свои
                 print("Ожидание кораблей от клиента...")
                 enemy_ships = self.receive_with_ack()
                 print("Корабли противника получены.")
 
-                # <<< ТУТ МЕСТО ДЛЯ ТВОЕЙ ЛОГИКИ >>> #
                 ships_set(enemy_ships)
 
                 print("Отправка своих кораблей клиенту...")
@@ -154,7 +148,6 @@ class Socket(ctk.CTkFrame):
 
 
             elif self.state == SocketState.client:
-                # КЛИЕНТ: отправляет свои корабли -> получает от хоста -> ставит
                 print("Отправка своих кораблей хосту...")
                 self.send_with_ack(ships)
 
@@ -162,7 +155,6 @@ class Socket(ctk.CTkFrame):
                 enemy_ships = self.receive_with_ack()
                 print("Корабли противника получены.")
 
-                # <<< ТУТ МЕСТО ДЛЯ ТВОЕЙ ЛОГИКИ >>> #
                 ships_set(enemy_ships)
 
         except Exception as e:
