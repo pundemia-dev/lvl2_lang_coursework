@@ -16,6 +16,7 @@ class Socket(ctk.CTkFrame):
         self.check_alive = self_check_alive  
         self.user_bomb_action = user_bomb_action 
 
+        self.secret_key = "my_secret_key"
         self.host = '127.0.0.1'
         self.port = 12345
         self.socket = None
